@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <Adafruit_NeoPixel.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
@@ -14,6 +15,8 @@ ESP8266WebServer server(80);
 // all pixel states are stored in this 2d array
 int pixels[NUMPIXELS][4] = {0};
 boolean isOn = true;
+void (*animation)(int d) = nullptr;
+int animationTime = millis();
 
 void setup() {
   Serial.begin(115200);
@@ -47,6 +50,11 @@ void setup() {
   Serial.println("/");
 
   setupServer();
+
+  EEPROM.begin(1);
+  int storedAnimation;
+  EEPROM.get(0, storedAnimation);
+  animation = storedAnimation == 0 ? noIdle : idle;
 }
 
 void loop() {
@@ -55,8 +63,6 @@ void loop() {
   delay(10);
 }
 
-void (*animation)(int d) = idle;
-int animationTime = millis();
 void runAnimation() {
   int now = millis();
   int delta = now - animationTime;
@@ -226,10 +232,14 @@ void setupServer() {
   });
   server.on("/idle", []() {
     animation = idle;
+    EEPROM.put(0, 1);
+    EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now Idleing</h1>" + animationOptions());
   });
   server.on("/no-idle", []() {
     animation = noIdle;
+    EEPROM.put(0, 0);
+    EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now not Idleing</h1>" + animationOptions());
   });
   server.on("/star", []() {
