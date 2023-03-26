@@ -143,6 +143,62 @@ void noIdle(int d) {
   setPixels(0, p, NUMPIXELS);
 }
 
+int allIndex = 0;
+boolean allFilling = true;
+void fillAll(int d, int r, int g, int b) {
+  int p[1][4] = {0};
+  p[0][0] = allFilling ? r : 0;
+  p[0][1] = allFilling ? g : 0;
+  p[0][2] = allFilling ? b : 0;
+  p[0][3] = 1;
+  setPixels(allIndex, p, 1);
+  allIndex++;
+  if (allIndex >= NUMPIXELS) {
+    allFilling = !allFilling;
+    allIndex = 0;
+  }
+}
+
+int catIndex = 0;
+boolean catFilling = true;
+void fillCat(int d, int r, int g, int b) {
+  int p[1][4] = {0};
+  p[0][0] = catFilling ? r : 0;
+  p[0][1] = catFilling ? g : 0;
+  p[0][2] = catFilling ? b : 0;
+  p[0][3] = 1;
+  setPixels(RINGNUM + catIndex, p, 1);
+  catIndex++;
+  if (catIndex >= CATNUM) {
+    catFilling = !catFilling;
+    catIndex = 0;
+  }
+}
+
+int ringIndex = 0;
+boolean ringFilling = true;
+void fillRing(int d, int r, int g, int b) {
+  int p[1][4] = {0};
+  p[0][0] = ringFilling ? r : 0;
+  p[0][1] = ringFilling ? g : 0;
+  p[0][2] = ringFilling ? b : 0;
+  p[0][3] = 1;
+  setPixels(ringIndex, p, 1);
+  ringIndex++;
+  if (ringIndex >= RINGNUM) {
+    ringFilling = !ringFilling;
+    ringIndex = 0;
+  }
+}
+
+void star(int d) {
+  int r = 255;
+  int g = 165;
+  int b = 0;
+  fillCat(d, r, g, b);
+  fillRing(d, r, g, b);
+}
+
 void setupServer() {
   server.on("/", []() {
     server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
@@ -160,6 +216,10 @@ void setupServer() {
     animation = noIdle;
     server.send(200, "text/html", "<h1>Octo Lamp is now not Idleing</h1>" + animationOptions());
   });
+  server.on("/star", []() {
+    animation = star;
+    server.send(200, "text/html", "<h1>Octo Lamp is now a star</h1>" + animationOptions());
+  });
   server.begin();
 }
 
@@ -169,5 +229,6 @@ String animationOptions() {
   html += "<a href='/toggle'>Toggle (now: " + isOnStr + ")</a><br>";
   html += "<a href='/idle'>Idle</a><br>";
   html += "<a href='/no-idle'>No Idle</a><br>";
+  html += "<a href='/star'>Star</a><br>";
   return html;
 }
