@@ -206,6 +206,15 @@ void commit(int d) {
   fillAll(d, r, g, b);
 }
 
+int alertIndex = 0;
+boolean alertFilling = true;
+void alert(int d) {
+  int r = 255;
+  int g = 0;
+  int b = 0;
+  fillAll(d, r, g, b);
+}
+
 void setupServer() {
   server.on("/", []() {
     server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
@@ -231,6 +240,10 @@ void setupServer() {
     animation = commit;
     server.send(200, "text/html", "<h1>Octo Lamp is now committing</h1>" + animationOptions());
   });
+  server.on("/alert", []() {
+    animation = alert;
+    server.send(200, "text/html", "<h1>Octo Lamp is now alerting</h1>" + animationOptions());
+  });
   server.begin();
 }
 
@@ -242,5 +255,6 @@ String animationOptions() {
   html += "<a href='/no-idle'>No Idle</a><br>";
   html += "<a href='/star'>Star</a><br>";
   html += "<a href='/commit'>Commit</a><br>";
+  html += "<a href='/alert'>Alert</a><br>";
   return html;
 }
