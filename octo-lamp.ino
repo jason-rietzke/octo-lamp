@@ -12,6 +12,8 @@ Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS, PIXELPIN, NEO_GRB + NEO_K
 
 ESP8266WebServer server(80);
 
+const char *WIFI_SSID = "ssid";           // your network SSID (name)
+const char *WIFI_PASSWORD = "paddword";   // your network key
 // all pixel states are stored in this 2d array
 int pixels[NUMPIXELS][4] = {0};
 boolean isOn = true;
@@ -29,7 +31,7 @@ void setup() {
   strip.show();
 
   // setup WiFi
-  WiFi.begin("WiFi", "Password");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   int i = 0;
   while (WiFi.status() != WL_CONNECTED) {
     strip.setPixelColor(i, strip.Color(0,0,255));
@@ -52,9 +54,24 @@ void setup() {
   setupServer();
 
   EEPROM.begin(1);
-  int storedAnimation;
-  EEPROM.get(0, storedAnimation);
-  animation = storedAnimation == 0 ? noIdle : idle;
+  int state = 0;
+  EEPROM.get(0, state);
+  if (state == 0) {
+    isOn = false;
+    animation = idle;
+  } else if (state == 2) {
+    isOn = true;
+    animation = star;
+  } else if (state == 3) {
+    isOn = true;
+    animation = commit;
+  } else if (state == 4) {
+    isOn = true;
+    animation = alert;
+  } else {
+    isOn = true;
+    animation = idle;
+  }
 }
 
 void loop() {
@@ -144,11 +161,6 @@ void idle(int d) {
   }
 }
 
-void noIdle(int d) {
-  int p[NUMPIXELS][4] = {0};
-  setPixels(0, p, NUMPIXELS);
-}
-
 int allIndex = 0;
 boolean allFilling = true;
 void fillAll(int d, int r, int g, int b) {
@@ -227,31 +239,39 @@ void setupServer() {
   });
   server.on("/toggle", []() {
     isOn = !isOn;
+    if (!isOn) {
+      EEPROM.put(0, 0);
+      EEPROM.commit();
+    }
     String msg = isOn ? "ON" : "OFF";
     server.send(200, "text/html", "<h1>Octo Lamp is now " + msg + "</h1>" + animationOptions());
   });
   server.on("/idle", []() {
     animation = idle;
+    isOn = true;
     EEPROM.put(0, 1);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now Idleing</h1>" + animationOptions());
   });
-  server.on("/no-idle", []() {
-    animation = noIdle;
-    EEPROM.put(0, 0);
-    EEPROM.commit();
-    server.send(200, "text/html", "<h1>Octo Lamp is now not Idleing</h1>" + animationOptions());
-  });
   server.on("/star", []() {
     animation = star;
+    isOn = true;
+    EEPROM.put(0, 2);
+    EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now a star</h1>" + animationOptions());
   });
   server.on("/commit", []() {
     animation = commit;
+    isOn = true;
+    EEPROM.put(1, 3);
+    EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now committing</h1>" + animationOptions());
   });
   server.on("/alert", []() {
     animation = alert;
+    isOn = true;
+    EEPROM.put(0, 4);
+    EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now alerting</h1>" + animationOptions());
   });
   server.begin();
@@ -259,10 +279,10 @@ void setupServer() {
 
 String animationOptions() {
   String html = "";
-  String isOnStr = isOn ? "ON" : "OFF";
-  html += "<a href='/toggle'>Toggle (now: " + isOnStr + ")</a><br>";
+  String isOnStr = isOn ? "off" : "on";
+  html += "<a href='/'>Home</a><br>";
+  html += "<a href='/toggle'>Turn " + isOnStr + "</a><br>";
   html += "<a href='/idle'>Idle</a><br>";
-  html += "<a href='/no-idle'>No Idle</a><br>";
   html += "<a href='/star'>Star</a><br>";
   html += "<a href='/commit'>Commit</a><br>";
   html += "<a href='/alert'>Alert</a><br>";
