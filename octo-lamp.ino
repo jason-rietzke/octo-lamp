@@ -98,3 +98,15 @@ void setPixels(int s, int p[][4], int n) {
   strip.show();
 }
 
+void setupServer() {
+  server.on("/", []() {
+    server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
+  });
+  server.begin();
+}
+
+String animationOptions() {
+  String html = "";
+  String isOnStr = isOn ? "ON" : "OFF";
+  return html;
+}
