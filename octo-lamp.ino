@@ -199,6 +199,13 @@ void star(int d) {
   fillRing(d, r, g, b);
 }
 
+void commit(int d) {
+  int r = 100;
+  int g = 255;
+  int b = 100;
+  fillAll(d, r, g, b);
+}
+
 void setupServer() {
   server.on("/", []() {
     server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
@@ -220,6 +227,10 @@ void setupServer() {
     animation = star;
     server.send(200, "text/html", "<h1>Octo Lamp is now a star</h1>" + animationOptions());
   });
+  server.on("/commit", []() {
+    animation = commit;
+    server.send(200, "text/html", "<h1>Octo Lamp is now committing</h1>" + animationOptions());
+  });
   server.begin();
 }
 
@@ -230,5 +241,6 @@ String animationOptions() {
   html += "<a href='/idle'>Idle</a><br>";
   html += "<a href='/no-idle'>No Idle</a><br>";
   html += "<a href='/star'>Star</a><br>";
+  html += "<a href='/commit'>Commit</a><br>";
   return html;
 }
