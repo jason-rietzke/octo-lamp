@@ -46,6 +46,7 @@ void setup() {
   Serial.print(WiFi.localIP());
   Serial.println("/");
 
+  setupServer();
 }
 
 void loop() {
@@ -54,7 +55,7 @@ void loop() {
   delay(10);
 }
 
-void (*animation)(int d) = idel;
+void (*animation)(int d) = idle;
 int animationTime = millis();
 void runAnimation() {
   int now = millis();
@@ -98,9 +99,66 @@ void setPixels(int s, int p[][4], int n) {
   strip.show();
 }
 
+int idleIndex = 0;
+boolean idleFilling = true;
+int startTimer = millis();
+int idleR = 0;
+int idleG = 0;
+int idleB = 0;
+void idle(int d) {
+  int now = millis();
+  int redRange[2] = {64, 192};
+  int greenRange[2] = {0, 128};
+  int blueRange[2] = {64, 255};
+  // rotate each color channel in the given range within 5 seconds gradually from one end to the other
+  // bouncing back and forth
+  // each channel starts at a different point in the cycle
+  float cycle = 15000.0;
+  int red = (int) (redRange[0] + (redRange[1] - redRange[0]) * (sin((now - startTimer) / cycle * 2 * PI + 0 * 2 * PI / 3) + 1) / 2);
+  int green = (int) (greenRange[0] + (greenRange[1] - greenRange[0]) * (sin((now - startTimer) / cycle * 2 * PI + 1 * 2 * PI / 3) + 1) / 2);
+  int blue = (int) (blueRange[0] + (blueRange[1] - blueRange[0]) * (sin((now - startTimer) / cycle * 2 * PI + 2 * 2 * PI / 3) + 1) / 2);
+  idleR = red;
+  idleG = green;
+  idleB = blue;
+  int p[1][4] = {0};
+  p[0][0] = red;
+  p[0][2] = blue;
+  p[0][1] = green;
+  p[0][3] = 1;
+  setPixels(idleIndex, p, 1);
+  if (idleFilling && idleIndex >= NUMPIXELS) {
+    idleFilling = !idleFilling;
+  } else if (!idleFilling && idleIndex <= 0) {
+    idleFilling = !idleFilling;
+  }
+  if (idleFilling) {
+    idleIndex++;
+  } else {
+    idleIndex--;
+  }
+}
+
+void noIdle(int d) {
+  int p[NUMPIXELS][4] = {0};
+  setPixels(0, p, NUMPIXELS);
+}
+
 void setupServer() {
   server.on("/", []() {
     server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
+  });
+  server.on("/toggle", []() {
+    isOn = !isOn;
+    String msg = isOn ? "ON" : "OFF";
+    server.send(200, "text/html", "<h1>Octo Lamp is now " + msg + "</h1>" + animationOptions());
+  });
+  server.on("/idle", []() {
+    animation = idle;
+    server.send(200, "text/html", "<h1>Octo Lamp is now Idleing</h1>" + animationOptions());
+  });
+  server.on("/no-idle", []() {
+    animation = noIdle;
+    server.send(200, "text/html", "<h1>Octo Lamp is now not Idleing</h1>" + animationOptions());
   });
   server.begin();
 }
@@ -108,5 +166,8 @@ void setupServer() {
 String animationOptions() {
   String html = "";
   String isOnStr = isOn ? "ON" : "OFF";
+  html += "<a href='/toggle'>Toggle (now: " + isOnStr + ")</a><br>";
+  html += "<a href='/idle'>Idle</a><br>";
+  html += "<a href='/no-idle'>No Idle</a><br>";
   return html;
 }
