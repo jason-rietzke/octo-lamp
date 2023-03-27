@@ -33,13 +33,15 @@ void setup() {
   // setup WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   int i = 0;
+  boolean fill = true;
   while (WiFi.status() != WL_CONNECTED) {
-    strip.setPixelColor(i, strip.Color(0,0,255));
+    strip.setPixelColor(i, fill ? strip.Color(0,0,255) : strip.Color(0,0,0));
     strip.show();
-    if (i >= NUMPIXELS) {
-      i = 0;
-    }
     i++;
+    if (i > NUMPIXELS) {
+      i = 0;
+      fill = !fill;
+    }
     delay(100);
   }
   for(int i=0;i<NUMPIXELS;i++) {
@@ -233,6 +235,7 @@ void alert(int d) {
   fillAll(d, r, g, b);
 }
 
+int prevAnimation = 0;
 void setupServer() {
   server.on("/", []() {
     server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
@@ -242,6 +245,9 @@ void setupServer() {
     if (!isOn) {
       EEPROM.put(0, 0);
       EEPROM.commit();
+    } else {
+      EEPROM.put(0, prevAnimation);
+      EEPROM.commit();
     }
     String msg = isOn ? "ON" : "OFF";
     server.send(200, "text/html", "<h1>Octo Lamp is now " + msg + "</h1>" + animationOptions());
@@ -249,6 +255,7 @@ void setupServer() {
   server.on("/idle", []() {
     animation = idle;
     isOn = true;
+    prevAnimation = 1;
     EEPROM.put(0, 1);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now Idleing</h1>" + animationOptions());
@@ -256,6 +263,7 @@ void setupServer() {
   server.on("/star", []() {
     animation = star;
     isOn = true;
+    prevAnimation = 2;
     EEPROM.put(0, 2);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now a star</h1>" + animationOptions());
@@ -263,6 +271,7 @@ void setupServer() {
   server.on("/commit", []() {
     animation = commit;
     isOn = true;
+    prevAnimation = 3;
     EEPROM.put(1, 3);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now committing</h1>" + animationOptions());
@@ -270,6 +279,7 @@ void setupServer() {
   server.on("/alert", []() {
     animation = alert;
     isOn = true;
+    prevAnimation = 4;
     EEPROM.put(0, 4);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now alerting</h1>" + animationOptions());
