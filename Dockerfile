@@ -8,4 +8,4 @@ COPY /server /app
 RUN cd /app && npm run build
 
 EXPOSE 80
-CMD cd /app/server && npm start
+CMD cd /app && npm start
