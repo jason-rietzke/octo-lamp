@@ -124,52 +124,13 @@ void setPixels(int s, int p[][4], int n) {
   strip.show();
 }
 
-int idleIndex = 0;
-boolean idleFilling = true;
-int startTimer = millis();
-int idleR = 0;
-int idleG = 0;
-int idleB = 0;
-void idle(int d) {
-  int now = millis();
-  int redRange[2] = {64, 192};
-  int greenRange[2] = {0, 128};
-  int blueRange[2] = {64, 255};
-  // rotate each color channel in the given range within 5 seconds gradually from one end to the other
-  // bouncing back and forth
-  // each channel starts at a different point in the cycle
-  float cycle = 15000.0;
-  int red = (int) (redRange[0] + (redRange[1] - redRange[0]) * (sin((now - startTimer) / cycle * 2 * PI + 0 * 2 * PI / 3) + 1) / 2);
-  int green = (int) (greenRange[0] + (greenRange[1] - greenRange[0]) * (sin((now - startTimer) / cycle * 2 * PI + 1 * 2 * PI / 3) + 1) / 2);
-  int blue = (int) (blueRange[0] + (blueRange[1] - blueRange[0]) * (sin((now - startTimer) / cycle * 2 * PI + 2 * 2 * PI / 3) + 1) / 2);
-  idleR = red;
-  idleG = green;
-  idleB = blue;
-  int p[1][4] = {0};
-  p[0][0] = red;
-  p[0][2] = blue;
-  p[0][1] = green;
-  p[0][3] = 1;
-  setPixels(idleIndex, p, 1);
-  if (idleFilling && idleIndex >= NUMPIXELS) {
-    idleFilling = !idleFilling;
-  } else if (!idleFilling && idleIndex <= 0) {
-    idleFilling = !idleFilling;
-  }
-  if (idleFilling) {
-    idleIndex++;
-  } else {
-    idleIndex--;
-  }
-}
-
 int allIndex = 0;
 boolean allFilling = true;
-void fillAll(int d, int r, int g, int b) {
+void fillAll(int d, int r, int g, int b, boolean clear = true) {
   int p[1][4] = {0};
-  p[0][0] = allFilling ? r : 0;
-  p[0][1] = allFilling ? g : 0;
-  p[0][2] = allFilling ? b : 0;
+  p[0][0] = clear ? (allFilling ? r : 0) : r;
+  p[0][1] = clear ? (allFilling ? g : 0) : g;
+  p[0][2] = clear ? (allFilling ? b : 0) : b;
   p[0][3] = 1;
   setPixels(allIndex, p, 1);
   allIndex++;
@@ -209,6 +170,31 @@ void fillRing(int d, int r, int g, int b) {
     ringFilling = !ringFilling;
     ringIndex = 0;
   }
+}
+
+int idleIndex = 0;
+boolean idleFilling = true;
+int startTimer = millis();
+int idleR = 0;
+int idleG = 0;
+int idleB = 0;
+void idle(int d) {
+  int now = millis();
+  int delta = now - startTimer;
+  int redRange[2] = {64, 192};
+  int greenRange[2] = {0, 128};
+  int blueRange[2] = {64, 255};
+  // rotate each color channel in the given range within 5 seconds gradually from one end to the other
+  // bouncing back and forth
+  // each channel starts at a different point in the cycle
+  float cycle = 15000.0;
+  int red = (int) (redRange[0] + (redRange[1] - redRange[0]) * (sin((delta) / cycle * 2 * PI + 0 * 2 * PI / 3) + 1) / 2);
+  int green = (int) (greenRange[0] + (greenRange[1] - greenRange[0]) * (sin((delta) / cycle * 2 * PI + 1 * 2 * PI / 3) + 1) / 2);
+  int blue = (int) (blueRange[0] + (blueRange[1] - blueRange[0]) * (sin((delta) / cycle * 2 * PI + 2 * 2 * PI / 3) + 1) / 2);
+  idleR = red;
+  idleG = green;
+  idleB = blue;
+  fillAll(d, red, green, blue, false);
 }
 
 void star(int d) {
