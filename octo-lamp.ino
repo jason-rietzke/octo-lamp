@@ -19,6 +19,9 @@ int pixels[NUMPIXELS][4] = {0};
 boolean isOn = true;
 void (*animation)(int d) = nullptr;
 int animationTime = millis();
+boolean isOverride = false;
+float overrideDuration = 0;
+void (*overrideAnimation) (int d) = nullptr;
 
 void setup() {
   Serial.begin(115200);
@@ -78,6 +81,9 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  if (isOverride) {
+    overrideHandler();
+  }
   runAnimation();
   delay(10);
 }
@@ -85,24 +91,24 @@ void loop() {
 void runAnimation() {
   int now = millis();
   int delta = now - animationTime;
-  if (BRIGHTNESS > 0) {
-    animation(delta);
-  }
-  if (isOn) {
-    if (BRIGHTNESS < 0.4) {
-      BRIGHTNESS += 0.4 / 500 * delta;
-    } else {
-      BRIGHTNESS = 0.4;
-    }
-  } else {
-    if (BRIGHTNESS > 0) {
-      BRIGHTNESS -= 0.4 / 500 * delta;
-    } else {
-      BRIGHTNESS = 0;
-      for(int i=0;i<NUMPIXELS;i++) {
-        strip.setPixelColor(i, strip.Color(0,0,0));
+  animation(delta);
+  if (!isOverride) {
+    if (isOn) {
+      if (BRIGHTNESS < 0.4) {
+        BRIGHTNESS += 0.4 / 500 * delta;
+      } else {
+        BRIGHTNESS = 0.4;
       }
-      strip.show();
+    } else {
+      if (BRIGHTNESS > 0) {
+        BRIGHTNESS -= 0.4 / 500 * delta;
+      } else {
+        BRIGHTNESS = 0;
+        for(int i=0;i<NUMPIXELS;i++) {
+          strip.setPixelColor(i, strip.Color(0,0,0));
+        }
+        strip.show();
+      }
     }
   }
   animationTime = now;
@@ -221,51 +227,75 @@ void alert(int d) {
   fillAll(d, r, g, b);
 }
 
-int prevAnimation = 0;
+int prevAnimationIndex = 1;
 void setupServer() {
   server.on("/", []() {
+    if (isOverride == true) {
+      server.send(200, "text/html", "<h1>Octo Lamp is currently reacting to GitHub event</h1>");
+      return;
+    }
     server.send(200, "text/html", "<h1>Octo Lamp</h1>" + animationOptions());
   });
   server.on("/toggle", []() {
+    if (isOverride == true) {
+      server.send(200, "text/html", "<h1>Octo Lamp is currently reacting to GitHub event</h1>");
+      return;
+    }
     isOn = !isOn;
     if (!isOn) {
       EEPROM.put(0, 0);
       EEPROM.commit();
     } else {
-      EEPROM.put(0, prevAnimation);
+      EEPROM.put(0, prevAnimationIndex);
       EEPROM.commit();
     }
     String msg = isOn ? "ON" : "OFF";
     server.send(200, "text/html", "<h1>Octo Lamp is now " + msg + "</h1>" + animationOptions());
   });
   server.on("/idle", []() {
+    if (isOverride == true) {
+      server.send(200, "text/html", "<h1>Octo Lamp is currently reacting to GitHub event</h1>");
+      return;
+    }
     animation = idle;
     isOn = true;
-    prevAnimation = 1;
+    prevAnimationIndex = 1;
     EEPROM.put(0, 1);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now Idleing</h1>" + animationOptions());
   });
   server.on("/star", []() {
+    if (isOverride == true) {
+      server.send(200, "text/html", "<h1>Octo Lamp is currently reacting to GitHub event</h1>");
+      return;
+    }
     animation = star;
     isOn = true;
-    prevAnimation = 2;
+    prevAnimationIndex = 2;
     EEPROM.put(0, 2);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now a star</h1>" + animationOptions());
   });
   server.on("/commit", []() {
+    if (isOverride == true) {
+      server.send(200, "text/html", "<h1>Octo Lamp is currently reacting to GitHub event</h1>");
+      return;
+    }
     animation = commit;
     isOn = true;
-    prevAnimation = 3;
+    prevAnimationIndex = 3;
     EEPROM.put(1, 3);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now committing</h1>" + animationOptions());
   });
   server.on("/alert", []() {
+    if (isOverride == true) {
+      server.send(200, "text/html", "<h1>Octo Lamp is currently reacting to GitHub event</h1>");
+      return;
+    }
     animation = alert;
     isOn = true;
-    prevAnimation = 4;
+    prevAnimationIndex = 4;
     EEPROM.put(0, 4);
     EEPROM.commit();
     server.send(200, "text/html", "<h1>Octo Lamp is now alerting</h1>" + animationOptions());
@@ -283,4 +313,29 @@ String animationOptions() {
   html += "<a href='/commit'>Commit</a><br>";
   html += "<a href='/alert'>Alert</a><br>";
   return html;
+}
+
+
+int overrideTime = 0;
+void (*prevAnimation)(int d) = nullptr;
+float prevBrightness = 0;
+void activateOverride(float duration, void (*anim)(int d)) {
+  if (isOverride) {
+    return;
+  }
+  isOverride = true;
+  overrideDuration = duration;
+  overrideAnimation = anim;
+  overrideTime = millis();
+  prevAnimation = animation;
+  prevBrightness = BRIGHTNESS;
+  animation = overrideAnimation;
+  BRIGHTNESS = 0.4;
+}
+void overrideHandler() {
+  if (overrideTime + overrideDuration < millis()) {
+    isOverride = false;
+    animation = prevAnimation;
+    BRIGHTNESS = prevBrightness;
+  }
 }

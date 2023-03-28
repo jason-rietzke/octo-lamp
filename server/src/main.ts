@@ -31,6 +31,7 @@ app.post("/event", (req, res) => {
 	// check for X-GitHub-Event header
 	const event = req.headers["x-github-event"];
 	const data = req.body;
+	if (!event || !data) return res.json({ success: true });
 	console.log("Event: " + event);
 	console.log("Data: " + JSON.stringify(data, null, 2));
 	switch (event) {
