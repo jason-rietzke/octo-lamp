@@ -2,6 +2,8 @@
 #include <Adafruit_NeoPixel.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
+#include <ArduinoHttpClient.h>
+#include <Arduino_JSON.h>
 
 #define PIXELPIN       D4
 #define NUMPIXELS      98
@@ -14,6 +16,16 @@ ESP8266WebServer server(80);
 
 const char *WIFI_SSID = "ssid";           // your network SSID (name)
 const char *WIFI_PASSWORD = "paddword";   // your network key
+
+String SERVER_URL = "http://server.url/event";  // your server url
+String SERVER_SECRET = "server_secret";         // your server secret
+
+WiFiClient wifi;
+HttpClient client = HttpClient(wifi, SERVER_URL.c_str(), 80);
+boolean fetching = true;
+int lastFetch = 0;
+int fetchInterval = 15000;
+
 // all pixel states are stored in this 2d array
 int pixels[NUMPIXELS][4] = {0};
 boolean isOn = true;
@@ -77,10 +89,12 @@ void setup() {
     isOn = true;
     animation = idle;
   }
+  lastFetch = fetchInterval * -1;
 }
 
 void loop() {
   server.handleClient();
+  fetchEvents();
   if (isOverride) {
     overrideHandler();
   }
@@ -89,6 +103,9 @@ void loop() {
 }
 
 void runAnimation() {
+  if (fetching) {
+    return;
+  }
   int now = millis();
   int delta = now - animationTime;
   animation(delta);
@@ -141,6 +158,7 @@ void fillAll(int d, int r, int g, int b, boolean clear = true) {
   setPixels(allIndex, p, 1);
   allIndex++;
   if (allIndex >= NUMPIXELS) {
+    fetching = true;
     allFilling = !allFilling;
     allIndex = 0;
   }
@@ -157,6 +175,7 @@ void fillCat(int d, int r, int g, int b) {
   setPixels(RINGNUM + catIndex, p, 1);
   catIndex++;
   if (catIndex >= CATNUM) {
+    fetching = true;
     catFilling = !catFilling;
     catIndex = 0;
   }
@@ -173,6 +192,7 @@ void fillRing(int d, int r, int g, int b) {
   setPixels(ringIndex, p, 1);
   ringIndex++;
   if (ringIndex >= RINGNUM) {
+    fetching = true;
     ringFilling = !ringFilling;
     ringIndex = 0;
   }
@@ -315,6 +335,52 @@ String animationOptions() {
   return html;
 }
 
+String eventId = "";
+void fetchEvents() {
+  int now = millis();
+  if (now - lastFetch < fetchInterval || fetching == false || isOverride == true) {
+    fetching = false;
+    return;
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    client.beginRequest();
+    client.get("/event");
+    client.sendHeader("Authorization", SERVER_SECRET.c_str());
+    client.endRequest();
+
+    int statusCode = client.responseStatusCode();
+    if (statusCode > 0) {
+      String payload = client.responseBody();
+      JSONVar buffer = JSON.parse(payload);
+      if (JSON.typeof(buffer) != "undefined") {
+        JSONVar keys = buffer.keys();
+        String id = buffer["id"];
+        if (eventId == "") {
+          eventId = id;
+        }
+        if (id != eventId) {
+          eventId = id;
+          for (int i = 0; i < keys.length(); i++) {
+            String key = keys[i];
+            String value = buffer[key];
+            if (key == "type") {
+              if (value == "star") {
+                activateOverride(120000, star);
+              } else if (value == "commit") {
+                int amount = buffer["amount"];
+                activateOverride(amount * 5000, commit);
+              } else if (value == "alert") {
+                activateOverride(30000, alert);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  lastFetch = millis();
+  fetching = false;
+}
 
 int overrideTime = 0;
 void (*prevAnimation)(int d) = nullptr;
